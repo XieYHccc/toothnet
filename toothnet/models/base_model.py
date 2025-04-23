@@ -7,6 +7,14 @@ class BaseModel(nn.Module):
         self.config = config
 
     def forward(self, inputs, targets=None):
+        """
+        Args:
+            intputs(torch.Tensor): (B, 6, 16000) batched point features(position and normal)
+            targets(torch.Tensor): (B, 1, 16000) batchedtarget labels
+        Retruns:
+            if targets is not None. return LossMap - a map from a named loss to a tensor storing the
+            loss, otherwise, return standard predicted output
+        """
         if targets is not None:
             return self.forward_training(inputs, targets)
         else:
@@ -17,23 +25,9 @@ class BaseModel(nn.Module):
             return outputs
     
     def forward_training(self, inputs, targets):
-        """
-        Args:
-            intputs: [B, 6, 16000] batched point features(position and normal)
-            targets: target labels
-        Retruns:
-            LossMap: mapping from a named loss to a tensor storing the
-            loss
-        """
         raise NotImplementedError
 
     def forward_inference(self, inputs):
-        """
-        Args:
-            intputs: (B, 6, 16000) batched point features(position and normal)
-        Retruns:
-            outputs: a dict. all output attributes should be shape (B, 16000, x)
-        """
         raise NotImplementedError
 
     def postprocess(self, cls_pred):

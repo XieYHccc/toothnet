@@ -80,7 +80,6 @@ def main(args):
             low_feat = batch_item["feat"].cuda()
             outputs = model(low_feat)
             pred_labels = outputs["labels"].squeeze()
-            print(pred_labels.shape)
             iou, f1, acc, sem_acc, iou_arr = cal_metric(gt_labels.squeeze(), pred_labels, pred_labels)
             total_iou += iou
             total_f1 += f1

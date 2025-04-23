@@ -75,8 +75,7 @@ def get_generator_set(config, is_test=False):
             shuffle=True,
             batch_size=config["train_batch_size"],
             collate_fn=collate_fn,
-            num_workers=10,
-            pin_memory=True
+            num_workers=10
         )
 
         val_point_loader = DataLoader(
@@ -89,8 +88,7 @@ def get_generator_set(config, is_test=False):
             shuffle=False,
             batch_size=config["val_batch_size"],
             collate_fn= collate_fn,
-            num_workers=10,
-            pin_memory=True
+            num_workers=10
         )
         return [point_loader, val_point_loader]
 

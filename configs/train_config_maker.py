@@ -21,8 +21,8 @@ def get_default_train_config(experiment_name, input_data_dir_path, train_data_sp
             "train_data_split_txt_path": f"{train_data_split_txt_path}",
             "val_data_split_txt_path": f"{val_data_split_txt_path}",
             "aug_obj_str": "Augmenter(translate=(-0.2, 0.2), scale=(0.8, 1.2), rotate=(-180, 180))",
-            "train_batch_size": 3,
-            "val_batch_size": 3,
+            "train_batch_size": 1,
+            "val_batch_size": 1,
         },
         "checkpoint_path": f"saved/ckpts/{experiment_name}",
     }

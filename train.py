@@ -4,9 +4,9 @@ from toothnet.trainer import Trainer
 
 def parse_args():
     parser = argparse.ArgumentParser(description='Train a model')
-    parser.add_argument('--model_name', default="pointnet2", type=str, help = "model name. list: tsegnet | tgnet_fps/tgnet_bdl | pointnet | pointnetpp | dgcnn | pointtransformer")
-    parser.add_argument('--config_path', default="configs/pointnet2.py", type=str, help = "train config file path.")
-    parser.add_argument('--experiment_name', default="pointnet2_test", type=str, help = "experiment name.")
+    parser.add_argument('--model_name', default="tsegnet", type=str, help = "model name. list: tsegnet | tgnet_fps/tgnet_bdl | pointnet | pointnetpp | dgcnn | pointtransformer")
+    parser.add_argument('--config_path', default="configs/tsegnet.py", type=str, help = "train config file path.")
+    parser.add_argument('--experiment_name', default="tsegnet_centroid", type=str, help = "experiment name.")
     parser.add_argument('--input_data_dir_path', default="data/preprocessed_data_16000_samples", type=str, help = "input data dir path.")
     parser.add_argument('--train_data_split_txt_path', default="data/preprocessed_data_16000_samples/train_list.txt", type=str, help = "train cases list file path.")
     parser.add_argument('--val_data_split_txt_path', default="data/preprocessed_data_16000_samples/val_list.txt", type=str, help = "val cases list file path.")
@@ -23,10 +23,14 @@ def main(args):
 
     trainer = None
     if args.model_name == "pointnet":
-        print("s")
+        from toothnet.models.pointnet import PointNet
+        trainer = Trainer(config, PointNet)
     elif args.model_name == "pointnet2":
         from toothnet.models.pointnet2 import PointNet2
         trainer = Trainer(config=config, model=PointNet2)
+    elif args.model_name =="tsegnet":
+        from toothnet.models.tsegnet import TSegNet
+        trainer = Trainer(config=config, model=TSegNet)
 
     trainer.run()
 

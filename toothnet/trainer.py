@@ -72,6 +72,7 @@ class Trainer:
         total_loss_meter = LossMeter()
         step_loss_meter = LossMeter()
         pre_step = self.step_count
+
         for batch_idx, batch_item in tqdm(enumerate(self.train_loader), total=len(self.train_loader), smoothing=0.9):
             points = batch_item["feat"].cuda()
             seg_label = batch_item["gt_seg_label"].cuda()
@@ -81,6 +82,7 @@ class Trainer:
             loss_sum.backward()
             self.optimizer.step()
             torch.cuda.empty_cache()
+
             total_loss_meter.aggr(loss.get_loss_dict_for_print("train"))
             step_loss_meter.aggr(loss.get_loss_dict_for_print("step"))
             # print(loss.get_loss_dict_for_print("step"))
