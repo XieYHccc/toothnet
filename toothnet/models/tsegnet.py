@@ -6,8 +6,81 @@ from toothnet.models.tsegnet_seg import TSegNetSegmentation
 from toothnet.models.pointnet2_utils import square_distance
 from toothnet.models.base_model import BaseModel
 from toothnet.models.tsegnet_loss import centroid_loss, segmentation_loss
-from toothnet.pointops_utils import torch_to_numpy, get_nearest_neighbor_idx, get_indexed_features, get_tooth_centroids, seg_label_to_cent
-from toothnet.loss_utils import LossMap
+from toothnet.utils.pointops_utils import torch_to_numpy, get_nearest_neighbor_idx, get_indexed_features
+from toothnet.utils.loss_utils import LossMap
+
+def get_tooth_centroids_batch(positions, labels):
+    """
+    Args:
+        positions(torch.Tensor): (B, 3, 16000)
+        labels(torch.Tensor): (B, 1, 16000)
+    Returns:
+        centroids(torch.Tensor): (B, 3, 16)
+        exists(torch.Tensor): (B, 16)
+    """
+    device = positions.device
+    batch_size, _, _ = positions.shape
+    positions = positions.permute(0, 2, 1)
+    labels = labels.permute(0, 2, 1)
+
+    cent_coords = []
+    cent_exists = []
+    for i in range(batch_size):
+        mesh_positions = positions[i]
+        mesh_labels = labels[i]
+        for class_idx in range(0, 16):
+            cls_mask = mesh_labels==class_idx
+            cls_positions = mesh_positions[cls_mask, :]
+            if cls_positions.shape[0]==0:
+                cent_coords.append(torch.from_numpy(np.array([-10,-10,-10])))
+                cent_exists.append(torch.zeros(1))
+            else:
+                centroid = torch.mean(cls_positions, axis=0)
+                cent_coords.append(centroid)
+                cent_exists.append(torch.ones(1))
+
+    cent_coords = torch.stack(cent_coords)
+    cent_coords = cent_coords.view(batch_size, 16, 3)
+    cent_coords = cent_coords.permute(0, 2, 1)
+    cent_exists = torch.stack(cent_exists)
+    cent_exists = cent_exists.view(batch_size, 16)
+
+    return cent_coords, cent_exists
+
+def get_tooth_centroids(gt_coords, gt_seg_label):
+    """
+    Args:
+        positions(torch.Tensor): (1, 3, 16000)
+        labels(torch.Tensor): (1, 1, 16000)
+    Returns:
+        centroids(torch.Tensor): (1, 3, 16)
+        exists(torch.Tensor): (1, 16)
+    """
+    gt_coords = gt_coords.permute(0,2,1)
+    gt_coords = gt_coords.view(-1,3)
+    gt_seg_label = gt_seg_label.view(-1)
+
+    gt_cent_coords = []
+    gt_cent_exists = []
+    for class_idx in range(0, 16):
+        cls_cond = gt_seg_label==class_idx
+        
+        cls_sample_xyz = gt_coords[cls_cond, :]
+        if cls_sample_xyz.shape[0]==0:
+            gt_cent_coords.append(torch.from_numpy(np.array([-10,-10,-10])))
+            gt_cent_exists.append(torch.zeros(1))
+        else:
+            centroid = torch.mean(cls_sample_xyz, axis=0)
+            gt_cent_coords.append(centroid)
+            gt_cent_exists.append(torch.ones(1))
+
+    gt_cent_coords = torch.stack(gt_cent_coords)
+    gt_cent_coords = gt_cent_coords.view(1, *gt_cent_coords.shape)
+    gt_cent_coords = gt_cent_coords.permute(0,2,1)
+    gt_cent_exists = torch.stack(gt_cent_exists)
+    gt_cent_exists = gt_cent_exists.view(1, -1)
+
+    return gt_cent_coords, gt_cent_exists
 
 class TSegNet(BaseModel):
     def __init__(self, config):
@@ -24,17 +97,17 @@ class TSegNet(BaseModel):
         B, C, N = inputs.shape
         gt_labels = targets
 
-        gt_centroids, gt_centroid_exists = get_tooth_centroids(inputs[:, :3, :], gt_labels)
+        gt_centroids, gt_centroid_exists = get_tooth_centroids(inputs[:, :3, :].cpu(), gt_labels)
         gt_centroids_label = torch.arange(0, 16).view(1, -1).cuda() + 1 # (1, 16)
-        gt_centroid_exists = gt_centroid_exists.view(1, -1)
+        gt_centroid_exists = gt_centroid_exists.view(1, -1) # B, 16
         gt_centroids = gt_centroids.permute(0, 2, 1) # (B, 16, 3)
         gt_centroids = gt_centroids[gt_centroid_exists>0, :]
         gt_centroids_label = gt_centroids_label[gt_centroid_exists>0]
         gt_centroids = gt_centroids.unsqueeze(dim=0)
         gt_centroids_label = gt_centroids_label.unsqueeze(dim=0)
         gt_centroids = gt_centroids.permute(0,2,1)
-        gt_centroids = gt_centroids.cuda() # B, 3, 14
-        gt_centroids_label = gt_centroids_label.cuda() # B, 14
+        gt_centroids = gt_centroids.cuda() # B, 3, 16
+        gt_centroids_label = gt_centroids_label.cuda() # B, 16
 
         outputs = self._forward(inputs)
         if self.run_seg_module:
@@ -55,7 +128,7 @@ class TSegNet(BaseModel):
     
     def _forward(self, inputs):
         """
-        inputs => [B, 6, 24000] : point features
+        inputs => [B, 6, 16000] : point features
         """
         B, C, N = inputs.shape
         outputs = {}
@@ -73,14 +146,19 @@ class TSegNet(BaseModel):
 
         moved_points = torch_to_numpy(l3_xyz + offset_result).T.reshape(-1,3)
         moved_points = moved_points[torch_to_numpy(dist_result).reshape(-1)<0.3,:]
-        dbscan_results = DBSCAN(eps=0.05, min_samples=3).fit(moved_points, 3)
+        dbscan_results = DBSCAN(eps=0.03, min_samples=2).fit(moved_points)
 
         center_points = []
         for label in np.unique(dbscan_results.labels_):
             if label == -1: continue
             center_points.append(moved_points[dbscan_results.labels_==label].mean(axis=0))
         center_points = np.array(center_points)
-        center_points = center_points[None, :, :]
+        if center_points.shape[0] == 0:
+            print(f"[WARNING] DBSCAN found no clusters. Using fallback center. moved points num: {moved_points.shape[0]}")
+            center = moved_points.mean(axis=0, keepdims=True)
+            center_points = center[None, :, :]  # shape (1, 1, 3)
+        else:
+            center_points = center_points[None, :, :]  # shape (1, N, 3)
 
         rand_indexes = np.random.permutation(center_points.shape[1])[:8]
         center_points = center_points.transpose(0,2,1)[:,:,rand_indexes].transpose(0,2,1)
@@ -89,7 +167,7 @@ class TSegNet(BaseModel):
 
         cropped_input_ls = get_indexed_features(inputs, nn_crop_indexes)
         cropped_feature_ls = get_indexed_features(l0_points, nn_crop_indexes)
-        ddf = self.get_ddf(cropped_input_ls[:,:3,:].permute(0,2,1), center_points)
+        ddf = self._get_ddf(cropped_input_ls[:,:3,:].permute(0,2,1), center_points)
         cropped_feature_ls = torch.cat([cropped_input_ls[:,:3,:], cropped_feature_ls, ddf], axis=1)
         pd_1, weight_1, pd_2, id_pred = self.seg_module(cropped_feature_ls)
         outputs.update({

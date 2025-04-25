@@ -2,8 +2,8 @@ import argparse
 import os
 import numpy as np
 from glob import glob
-from toothnet.io_utils import load_json, load_mesh
-from toothnet.pointops_utils import pc_normalize, farthest_point_sample_torch
+from toothnet.utils.io_utils import load_json, load_mesh
+from toothnet.utils.pointops_utils import pc_normalize, farthest_point_sample_torch
 
 def parse_args():
     parser = argparse.ArgumentParser()

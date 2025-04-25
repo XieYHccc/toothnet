@@ -4,14 +4,14 @@ import torch
 import wandb
 from torch.optim.lr_scheduler import ExponentialLR
 from toothnet.external.scheduler import build_scheduler_from_cfg
-from toothnet.loss_utils import LossMeter
+from toothnet.utils.loss_utils import LossMeter
 from toothnet.generator import get_generator_set
-from toothnet.loss_utils import LossMeter
+from toothnet.utils.loss_utils import LossMeter
 from tqdm import tqdm
 from math import inf
 
 class Trainer:
-    def __init__(self, config:dict, model):
+    def __init__(self, config, model):
         """
         Args:
             config: dict from get_train_configs() in train_config_maker.py
@@ -19,7 +19,7 @@ class Trainer:
         """
 
         self.config = config
-        self.model = model(config)
+        self.model = model
         self.model.cuda()
         self.val_count = 0
         self.train_count = 0
@@ -79,6 +79,7 @@ class Trainer:
             loss = self.model(points, seg_label)
             loss_sum = loss.get_sum()
             self.optimizer.zero_grad()
+            #with torch.autograd.set_detect_anomaly(True):
             loss_sum.backward()
             self.optimizer.step()
             torch.cuda.empty_cache()

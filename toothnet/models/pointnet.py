@@ -3,7 +3,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 from toothnet.models.toothnet_loss import tooth_class_loss
-from toothnet.loss_utils import LossMap
+from toothnet.utils.loss_utils import LossMap
 from toothnet.models.pointnet_utils import PointNetEncoder
 from toothnet.models.base_model import BaseModel
 

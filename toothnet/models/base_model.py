@@ -1,6 +1,28 @@
+import torch
 import torch.nn.functional as F
 from torch import nn
 
+def tensors_to_numpy(obj):
+    """
+    Recursively convert all torch.Tensors in a nested structure to numpy.ndarray.
+
+    Args:
+        obj: A tensor, or a nested structure (list, tuple, dict) containing tensors.
+
+    Returns:
+        The same structure with all tensors converted to NumPy arrays.
+    """
+    if isinstance(obj, torch.Tensor):
+        return obj.detach().cpu().numpy()  # Safely convert tensor to numpy
+    elif isinstance(obj, dict):
+        return {k: tensors_to_numpy(v) for k, v in obj.items()}
+    elif isinstance(obj, list):
+        return [tensors_to_numpy(v) for v in obj]
+    elif isinstance(obj, tuple):
+        return tuple(tensors_to_numpy(v) for v in obj)
+    else:
+        return obj  # Non-tensor, return as-is
+    
 class BaseModel(nn.Module):
     def __init__(self, config):
         super().__init__() 
@@ -22,7 +44,8 @@ class BaseModel(nn.Module):
             outputs = self.forward_inference(inputs)
             if "cls_pred" in outputs:
                 outputs["labels"] = self.postprocess(outputs["cls_pred"])
-            return outputs
+
+            return tensors_to_numpy(outputs)
     
     def forward_training(self, inputs, targets):
         raise NotImplementedError

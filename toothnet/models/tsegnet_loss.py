@@ -13,8 +13,8 @@ def distance_loss(pred_distance, sample_xyz, centroid):
     return loss
 
 def centroid_dist_loss(pred_offset, sample_xyz, distance, centroid):
-    distance = distance.view(-1, sample_xyz.shape[2])
-    pred_offset = pred_offset.permute(0,2,1)
+    distance = distance.view(-1, sample_xyz.shape[2]) # B, n_sample
+    pred_offset = pred_offset.permute(0,2,1) # B, n_sample, 3
     sample_xyz = sample_xyz.permute(0,2,1)
     centroid = centroid.permute(0,2,1)
 

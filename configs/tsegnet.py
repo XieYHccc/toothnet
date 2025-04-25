@@ -13,7 +13,7 @@ train_config={
             "min_lr": 1e-4,
         },
     },
-    # "pretrained_centroid_model_path": "", # pretrained centroid prediction model ckpt path! 
+    "pretrained_centroid_model_path": "saved/ckpts/tsegnet_centroid_seg_val", # pretrained centroid prediction model ckpt path! 
     # If run_tooth_segmentation_module is False, only the centroid prediction module will be trained.
-    "run_tooth_segmentation_module": False
+    "run_tooth_segmentation_module": True
 }

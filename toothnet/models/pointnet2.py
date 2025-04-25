@@ -3,7 +3,7 @@ import torch.nn.functional as F
 from toothnet.models.pointnet2_utils import PointNetSetAbstractionMsg, PointNetFeaturePropagation
 from toothnet.models.toothnet_loss import tooth_class_loss
 from toothnet.models.base_model import BaseModel
-from toothnet.loss_utils import LossMap
+from toothnet.utils.loss_utils import LossMap
 
 def get_loss(gt_seg_label_1, sem_1):
     tooth_class_loss_1 = tooth_class_loss(sem_1, gt_seg_label_1, 17)
@@ -47,7 +47,7 @@ class PointNet2(BaseModel):
         self.conv1 = nn.Conv1d(32, 16, 1)
         self.bn1 = nn.BatchNorm1d(16)
     
-    def forward(self, inputs, targets):
+    def forward_traning(self, inputs, targets):
         logits = self._forward(inputs)
         loss_map = LossMap()
         loss_map.add_loss_by_dict(get_loss(targets, logits))
